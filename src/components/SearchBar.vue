@@ -20,55 +20,75 @@
   </div>
 </template>
 
-<script>
-import axios from 'axios';
+<script setup lang="ts">
+import { ref } from 'vue'
+import axios from 'axios'
 
-export default {
-  name: 'SearchBar',
-  data() {
-    return {
-      query: '',
-      locations: [],
-    };
-  },
-  methods: {
-    async searchLocations() {
-      if (this.query.length < 2) {
-        this.locations = [];
-        return;
-      }
-      try {
-        const response = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
-          params: {
-            name: this.query,
-            count: 10,
-            language: 'en',
-            format: 'json',
-          },
-        });
-        this.locations = response.data.results || [];
-      } catch (err) {
-        console.error('Search error:', err);
-      }
-    },
-    selectLocation(location) {
-      this.$emit('location-selected', {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        name: location.name,
-      });
-      this.query = '';
-      this.locations = [];
-    },
-    formatAdmin(location) {
-      const adminLevels = [
-        location.admin1,
-        location.admin2,
-        location.admin3,
-        location.admin4,
-      ].filter((admin) => admin);
-      return adminLevels.length ? adminLevels.join(', ') : '';
-    },
-  },
-};
+interface Location {
+  id: number
+  name: string
+  latitude: number
+  longitude: number
+  country: string
+  admin1?: string
+  admin2?: string
+  admin3?: string
+  admin4?: string
+}
+
+interface LocationSelectedData {
+  latitude: number
+  longitude: number
+  name: string
+}
+
+const emit = defineEmits<{
+  'location-selected': [data: LocationSelectedData]
+}>()
+
+const query = ref<string>('')
+const locations = ref<Location[]>([])
+
+const searchLocations = async (): Promise<void> => {
+  if (query.value.length < 2) {
+    locations.value = []
+    return
+  }
+  
+  try {
+    const response = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
+      params: {
+        name: query.value,
+        count: 10,
+        language: 'en',
+        format: 'json',
+      },
+    })
+    locations.value = response.data.results || []
+  } catch (err) {
+    console.error('Search error:', err)
+    locations.value = []
+  }
+}
+
+const selectLocation = (location: Location): void => {
+  emit('location-selected', {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    name: location.name,
+  })
+  query.value = ''
+  locations.value = []
+}
+
+const formatAdmin = (location: Location): string => {
+  const adminLevels = [
+    location.admin1,
+    location.admin2,
+    location.admin3,
+    location.admin4,
+  ].filter((admin): admin is string => Boolean(admin))
+  
+  return adminLevels.length ? adminLevels.join(', ') : ''
+}
 </script>

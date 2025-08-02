@@ -6,51 +6,55 @@
   </div>
 </template>
 
-<script>
-import SearchBar from './components/SearchBar.vue';
-import WeatherDisplay from './components/WeatherDisplay.vue';
-import axios from 'axios';
+<script setup lang="ts">
+import { ref } from 'vue'
+import axios from 'axios'
 
-export default {
-  name: 'App',
-  components: {
-    SearchBar,
-    WeatherDisplay,
-  },
-  data() {
-    return {
-      weatherData: null,
-      isLoading: false,
-      error: null,
-    };
-  },
-  methods: {
-    async fetchWeather({ latitude, longitude, name }) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const response = await axios.get('https://api.open-meteo.com/v1/forecast', {
-          params: {
-            latitude,
-            longitude,
-            hourly: 'temperature_2m,weathercode',
-            start_date: today,
-            end_date: today,
-            timezone: 'auto',
-          },
-        });
+interface LocationData {
+  latitude: number
+  longitude: number
+  name: string
+}
 
-        this.weatherData = {
-          city: name,
-          hourly: response.data.hourly,
-        };
-      } catch (err) {
-        this.error = 'Failed to load weather data';
-      } finally {
-        this.isLoading = false;
-      }
-    },
-  },
-};
+interface WeatherData {
+  city: string
+  hourly: {
+    temperature_2m: number[]
+    weathercode: number[]
+    time: string[]
+  }
+}
+
+const weatherData = ref<WeatherData | null>(null)
+const isLoading = ref<boolean>(false)
+const error = ref<string | null>(null)
+
+const fetchWeather = async ({ latitude, longitude, name }: LocationData) => {
+  isLoading.value = true
+  error.value = null
+  
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    const response = await axios.get('https://api.open-meteo.com/v1/forecast', {
+      params: {
+        latitude,
+        longitude,
+        hourly: 'temperature_2m,weathercode',
+        start_date: today,
+        end_date: today,
+        timezone: 'auto',
+      },
+    })
+
+    weatherData.value = {
+      city: name,
+      hourly: response.data.hourly,
+    }
+  } catch (err) {
+    error.value = 'Failed to load weather data'
+    console.error('Weather fetch error:', err)
+  } finally {
+    isLoading.value = false
+  }
+}
 </script>
